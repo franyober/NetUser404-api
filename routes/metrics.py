@@ -33,5 +33,5 @@ def update_metric():
 def remove_metric(id: str):
     metricEntity(conn.local.metrics.find_one_and_delete({"_id": ObjectId(id)}))
     
-    return Response() 
+    return Response(status_code=HTTP_204_NO_CONTENT) 
 
