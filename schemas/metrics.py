@@ -1,7 +1,7 @@
 
 def metricEntity(item) -> dict:
     return {
-            "id": item["id"],
+            "id": str(item["_id"]),
             "date": item["date"],
             "hour": item["hour"],
             "system": item["system"],
@@ -15,4 +15,5 @@ def metricEntity(item) -> dict:
             "delay": item["delay"]
             }
 
-
+def metricsEntity(entity) -> list:
+    return [metricEntity(item) for item in entity]
