@@ -28,19 +28,26 @@ def validate_device(authorization: str = Header(None)):
     if authorization not in AUTHORIZED_DEVICES.values():
         raise HTTPException(status_code=403, detail="Dispositivo no autorizado")
 
+
+@metric.get('/metrics/errors-count')
+def get_errors_count(date: str, authorization: str = Header(None)):
+    #validate_device(authorization)
+    count = conn.local.metrics.count_documents({"date": date, "status": 200})
+    return {"date": date, "error_count": count}
+
 @metric.get('/metrics')
 def get_all_metrics(authorization: str = Header(None)):
-    validate_device(authorization)
+    #validate_device(authorization)
     return metricsEntity(conn.local.metrics.find())
 
 @metric.get('/metrics/{id}')
 def find_metric(id: str, authorization: str = Header(None)):
-    validate_device(authorization)
+    #validate_device(authorization)
     return metricEntity(conn.local.metrics.find_one({"_id": ObjectId(id)}))
 
 @metric.post('/metrics')
 def add_metric(metric: Metric, authorization: str = Header(None)):
-    validate_device(authorization)
+    #validate_device(authorization)
     new_metric = dict(metric)
     del new_metric["id"]
     id = conn.local.metrics.insert_one(new_metric).inserted_id
@@ -49,7 +56,7 @@ def add_metric(metric: Metric, authorization: str = Header(None)):
 
 @metric.put('/metrics/{id}')
 def update_metric(id: str, metric: Metric, authorization: str = Header(None)):
-    validate_device(authorization)
+    #validate_device(authorization)
     updated_metric = dict(metric)
     del updated_metric["id"]
     conn.local.metrics.find_one_and_update(
@@ -59,7 +66,7 @@ def update_metric(id: str, metric: Metric, authorization: str = Header(None)):
 
 @metric.delete('/metrics/{id}')
 def remove_metric(id: str, authorization: str = Header(None)):
-    validate_device(authorization)
+    #validate_device(authorization)
     conn.local.metrics.find_one_and_delete({"_id": ObjectId(id)})
     return Response(status_code=HTTP_204_NO_CONTENT)
 
