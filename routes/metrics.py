@@ -29,11 +29,21 @@ def validate_device(authorization: str = Header(None)):
         raise HTTPException(status_code=403, detail="Dispositivo no autorizado")
 
 
-@metric.get('/metrics/errors-count')
+@metric.get("/metrics/errors-count")
 def get_errors_count(date: str, authorization: str = Header(None)):
-    #validate_device(authorization)
-    count = conn.local.metrics.count_documents({"date": date, "status": 200})
-    return {"date": date, "error_count": count}
+    # validate_device(authorization)  # Descomentar si es necesario
+
+    pipeline = [
+        {"$match": {"date": date}},  # Filtrar por fecha
+        {"$group": {"_id": "$status", "count": {"$sum": 1}}}  # Agrupar por código HTTP y contar
+    ]
+
+    resultados = list(conn.local.metrics.aggregate(pipeline))
+
+    # Convertir resultados en un diccionario {codigo: cantidad}
+    conteo_por_codigo = [{"status": item["_id"], "count": item["count"]} for item in resultados]
+
+    return conteo_por_codigo
 
 @metric.get('/metrics')
 def get_all_metrics(authorization: str = Header(None)):
