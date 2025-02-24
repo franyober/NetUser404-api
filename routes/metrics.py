@@ -7,6 +7,8 @@ from starlette.status import HTTP_204_NO_CONTENT
 from dotenv import load_dotenv
 import os
 import json
+from collections import defaultdict
+import statistics
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -45,10 +47,31 @@ def get_errors_count(date: str, authorization: str = Header(None)):
 
     return conteo_por_codigo
 
-@metric.get('/metrics')
-def get_all_metrics(authorization: str = Header(None)):
-    #validate_device(authorization)
-    return metricsEntity(conn.local.metrics.find())
+@metric.get('/metrics/delay')
+def get_delay_5min(date: str):
+    registros = conn.local.metrics.find(
+        {"date": date},  # Filtrar por fecha
+        {"hour": 1, "delay": 1, "_id": 0}  # Solo obtener hour y delay
+    )
+    print(registros)
+
+    delay_por_5min = defaultdict(list)
+
+    for registro in registros:
+        hora = registro["hour"][:2]  # Obtener solo las horas (HH)
+        minuto = int(registro["hour"][3:5])  # Obtener los minutos (MM)
+
+        # Redondear el minuto al múltiplo de 5 más cercano hacia abajo 
+        minuto_redondeado = minuto // 5 * 5  
+        clave = f"{hora}:{minuto_redondeado:02d}"  # Formato HH:MM
+
+        delay_por_5min[clave].append(registro["delay"])
+
+    # Calcular el promedio de delay por cada bloque de 5 minutos
+    delay_avg = [{"minute": minuto, "avg_delay": round(statistics.mean(delays), 2)}
+                 for minuto, delays in sorted(delay_por_5min.items())]
+
+    return delay_avg
 
 @metric.get('/metrics/{id}')
 def find_metric(id: str, authorization: str = Header(None)):
