@@ -9,6 +9,7 @@ import os
 import json
 from collections import defaultdict
 import statistics
+from typing import List
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -32,11 +33,11 @@ def validate_device(authorization: str = Header(None)):
 
 
 @metric.get("/metrics/errors-count")
-def get_errors_count(date: str, authorization: str = Header(None)):
+def get_errors_count(date: str, bssid: str, authorization: str = Header(None)):
     # validate_device(authorization)  # Descomentar si es necesario
 
     pipeline = [
-        {"$match": {"date": date}},  # Filtrar por fecha
+        {"$match": {"date": date, "bssid": bssid}},  # Filtrar por fecha
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}  # Agrupar por código HTTP y contar
     ]
 
@@ -47,10 +48,38 @@ def get_errors_count(date: str, authorization: str = Header(None)):
 
     return conteo_por_codigo
 
+@metric.get('/metrics/network')
+def get_metrics_network():
+    
+    pipeline = [
+        {"$match": {"bssid": {"$nin": ["00:00:00:00:00:00","string"]}}}, 
+        {"$group": {"_id": "$bssid"}},
+        #{"$project": {"_id": 0, "bssid": "$_id"}}
+    ]
+    
+    metrics_network = [item["_id"].replace("\\x20", " ") for item in conn.local.metrics.aggregate(pipeline)]
+    return {"network": metrics_network}
+
+
+@metric.get('/metrics/dateHour')
+def get_metrics_dateHour(date: str, hour: str):
+
+    only_hour = hour[0:2]
+
+    filter={
+        'hour': {
+            '$regex': f'^{hour}'
+        },
+        'date': date
+    }
+    result = list(conn.local.metrics.find(filter,{'_id': 0}))
+    return result 
+
+
 @metric.get('/metrics/delay')
-def get_delay_5min(date: str):
+def get_delay_5min(date: str, bssid: str):
     registros = conn.local.metrics.find(
-        {"date": date},  # Filtrar por fecha
+        {"date": date, "bssid": bssid},  # Filtrar por fecha
         {"hour": 1, "delay": 1, "_id": 0}  # Solo obtener hour y delay
     )
     print(registros)
@@ -86,6 +115,7 @@ def add_metric(metric: Metric, authorization: str = Header(None)):
     id = conn.local.metrics.insert_one(new_metric).inserted_id
     metric = conn.local.metrics.find_one({"_id": id})
     return metricEntity(metric)
+
 
 @metric.put('/metrics/{id}')
 def update_metric(id: str, metric: Metric, authorization: str = Header(None)):
