@@ -117,6 +117,24 @@ def add_metric(metric: Metric, authorization: str = Header(None)):
     return metricEntity(metric)
 
 
+@metric.post('/metrics/datos')
+def add_metrics(metrics: list[Metric], authorization: str = Header(None)):
+    # validate_device(authorization)
+    new_metrics = [dict(metric) for metric in metrics]
+    
+    # Eliminar la clave "id" de cada métrica (si existe)
+    for metric in new_metrics:
+        metric.pop("id", None)
+    
+    # Insertar todas las métricas en la base de datos
+    inserted = conn.local.metrics.insert_many(new_metrics)
+    
+    # Recuperar los documentos insertados
+    metrics = list(conn.local.metrics.find({"_id": {"$in": inserted.inserted_ids}}))
+    
+    return [metricEntity(metric) for metric in metrics]
+
+
 @metric.put('/metrics/{id}')
 def update_metric(id: str, metric: Metric, authorization: str = Header(None)):
     #validate_device(authorization)

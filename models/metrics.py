@@ -15,3 +15,5 @@ class Metric(BaseModel):
     load: float
     transferred: float
     delay: float
+    download: float
+    comment: str

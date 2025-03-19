@@ -12,7 +12,9 @@ def metricEntity(item) -> dict:
             "status": item["status"],
             "load": item["load"],
             "transferred": item["transferred"],
-            "delay": item["delay"]
+            "delay": item["delay"],
+            "download": item["download"],
+            "comment": item["comment"]
             }
 
 def metricsEntity(entity) -> list:
