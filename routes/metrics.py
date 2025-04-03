@@ -110,4 +110,12 @@ def add_metrics(metrics: list[Metric]):
     
     return [metricEntity(metric) for metric in metrics]
 
-
+#----------------------
+@metric.get("/check-mongodb")
+def check_mongodb():
+    try:
+        # Intentar hacer ping al servidor de MongoDB
+        conn.admin.command('ping')
+        return 1 
+    except:
+        return 0
