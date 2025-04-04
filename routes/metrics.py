@@ -1,13 +1,9 @@
-from fastapi import APIRouter, Response, status, HTTPException, Header
+from fastapi import APIRouter
 from config.db import conn
 from schemas.metrics import metricEntity, metricsEntity
 from models.metrics import Metric
-from bson import ObjectId
-from starlette.status import HTTP_204_NO_CONTENT
 from dotenv import load_dotenv
-from collections import defaultdict
-import statistics
-from typing import List
+
 
 # Cargar las variables del archivo .env
 load_dotenv()
