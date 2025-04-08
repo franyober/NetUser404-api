@@ -1,9 +1,10 @@
 from fastapi import APIRouter
+from fastapi import Query
 from config.db import conn
 from schemas.metrics import metricEntity, metricsEntity
 from models.metrics import Metric
 from dotenv import load_dotenv
-
+from typing import Optional
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -35,10 +36,14 @@ def get_pages():
     return {"pages": pages}
 
 @metric.get("/metrics/status_code")
-def get_errors_count(date: str, bssid: str, url: str):
+def get_errors_count(date: str, bssid: str, url: str, mac:Optional[str]=Query(None)):
+
+    match = {"date": date, "bssid": bssid, "url": url}
+    if mac:
+        match["MAC"] = mac
 
     pipeline = [
-        {"$match": {"date": date, "bssid": bssid, "url": url}},  # Filtrar por fecha
+        {"$match": match},  # Filtrar por fecha
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}  # Agrupar por código HTTP y contar
     ]
 
@@ -50,9 +55,14 @@ def get_errors_count(date: str, bssid: str, url: str):
     return conteo_por_codigo
 
 @metric.get('/metrics/load')
-def get_load_time(date: str, bssid: str, url: str):
+def get_load_time(date: str, bssid: str, url: str, mac: Optional[str] = Query(None)):
+
+    match = {"date": date, "bssid": bssid, "url": url}
+    if mac:
+        match["MAC"] = mac
+
     registros = conn.local.metrics.find(
-        {"date": date, "bssid": bssid, "url": url},  # Filtrar por fecha
+        match,  # Filtrar por fecha
         {"hour": 1, "load": 1, "_id": 0}  # Solo obtener hour y delay
     )
     registros_list = list(registros)
@@ -61,9 +71,14 @@ def get_load_time(date: str, bssid: str, url: str):
 
 #------------------------------------------------------------------------------
 @metric.get('/metrics/latency')
-def get_delay(date: str, bssid: str):
+def get_delay(date: str, bssid: str, mac: Optional[str] = Query(None)):
+
+    match = {"date": date, "bssid": bssid}
+    if mac:
+        match["MAC"] = mac
+
     registros = conn.local.metrics.find(
-        {"date": date, "bssid": bssid},  # Filtrar por fecha
+        match,  # Filtrar por fecha
         {"hour": 1, "delay": 1, "_id": 0}  # Solo obtener hour y delay
     )
     registros_list = list(registros)
@@ -71,9 +86,14 @@ def get_delay(date: str, bssid: str):
     return registros_list
 
 @metric.get('/metrics/download')
-def get_download(date: str, bssid: str):
+def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
+
+    match = {"date": date, "bssid": bssid}
+    if mac:
+        match["MAC"] = mac
+
     registros = conn.local.metrics.find(
-        {"date": date, "bssid": bssid},  # Filtrar por fecha
+        match,  # Filtrar por fecha
         {"hour": 1, "download": 1, "_id": 0}  # Solo obtener hour y delay
     )
     registros_list = list(registros)
