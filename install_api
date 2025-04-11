@@ -1,0 +1,64 @@
+#!/bin/bash
+
+# Verificar si se ejecuta como root
+if [ "$EUID" -ne 0 ]; then
+    echo "Por favor, ejecuta el script como root o con sudo"
+    exit 1
+fi
+
+# Determinar el usuario real
+SERVICE_USER=${SUDO_USER:-$USER}
+
+# Instalar dependencias
+echo "Instalando dependencias..."
+apt-get update
+apt-get install -y git python3 python3-pip python3-venv
+
+# Clonar repositorio
+REPO_DIR="/opt/NetUser404-api"
+echo "Clonando repositorio en $REPO_DIR..."
+if [ -d "$REPO_DIR" ]; then
+    echo "Eliminando instalación previa..."
+    rm -rf "$REPO_DIR"
+fi
+git clone https://github.com/franyober/netUser404-api.git "$REPO_DIR"
+
+# Ajustar permisos
+chown -R "$SERVICE_USER:$SERVICE_USER" "$REPO_DIR"
+
+# Crear entorno virtual
+echo "Creando entorno virtual..."
+sudo -u "$SERVICE_USER" python3 -m venv "$REPO_DIR/env"
+
+# Instalar dependencias
+echo "Instalando dependencias Python..."
+sudo -u "$SERVICE_USER" "$REPO_DIR/env/bin/pip" install -r "$REPO_DIR/requirements.txt"
+
+# Crear archivo de servicio
+SERVICE_FILE="/etc/systemd/system/NetUserAPI.service"
+echo "Creando servicio systemd en $SERVICE_FILE..."
+
+cat > "$SERVICE_FILE" << EOF
+[Unit]
+Description=Uvicorn FastAPI Application
+After=network.target
+
+[Service]
+User=$SERVICE_USER
+WorkingDirectory=$REPO_DIR
+ExecStart=$REPO_DIR/env/bin/python3 -m uvicorn app:app --reload --host 0.0.0.0
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Recargar e iniciar servicio
+echo "Iniciando el servicio..."
+systemctl daemon-reload
+systemctl enable NetUserAPI
+systemctl start NetUserAPI
+
+echo "Instalación completada!"
+echo "Estado del servicio: systemctl status NetUserAPI"
