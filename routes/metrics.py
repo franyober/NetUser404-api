@@ -23,6 +23,19 @@ def get_networks():
     networks = [item["_id"].replace("\\x20", " ") for item in conn.local.metrics.aggregate(pipeline)]
     return {"network": networks}
 
+@metric.get('/MAC_list')
+def get_mac_list():
+        
+    pipeline = [
+            {"$match": {"MAC": {"$nin": ["N/A", "string"]}}},
+            {"$group": {"_id": "$MAC"}},
+
+    ]
+    
+    MAC_list = [item["_id"] for item in conn.local.metrics.aggregate(pipeline)]
+    return {"MAC_list": MAC_list}
+
+
 @metric.get('/pages')
 def get_pages():
     
