@@ -11,6 +11,26 @@ load_dotenv()
 
 metric = APIRouter()
 
+
+
+# Nuevos endpoints con filtros
+@metric.get('/macs_by_bssid')
+def get_macs_by_bssid(bssid: str):
+    pipeline = [
+        {"$match": {"bssid": bssid, "MAC": {"$nin": ["N/A", "string"]}}},
+        {"$group": {"_id": "$MAC"}}
+    ]
+    return {"MAC_list": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
+
+@metric.get('/bssids_by_mac')
+def get_bssids_by_mac(mac: str):
+    pipeline = [
+        {"$match": {"MAC": mac, "bssid": {"$nin": ["N/A", "string"]}}},
+        {"$group": {"_id": "$bssid"}}
+    ]
+    return {"network": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
+
+
 @metric.get('/networks')
 def get_networks():
     
