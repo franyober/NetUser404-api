@@ -1,8 +1,7 @@
 from fastapi import APIRouter
 from fastapi import Query
 from config.db import metrics, conn
-from schemas.metrics import metricEntity, metricsEntity
-from models.metrics import Metric
+from schemas.metrics import MetricIn, MetricOut, metricEntity, metricsEntity
 from dotenv import load_dotenv
 from typing import Optional
 
@@ -149,8 +148,8 @@ def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
     return registros_list
 
 #------------------------------------POST-------------------------------------
-@metric.post('/metric')
-def add_metric(metric: Metric):
+@metric.post("/metric", response_model=MetricOut)
+def add_metric(metric: MetricIn):
     new_metric = dict(metric)
     del new_metric["id"]
     id = metrics.insert_one(new_metric).inserted_id
@@ -158,8 +157,8 @@ def add_metric(metric: Metric):
     return metricEntity(metric)
 
 
-@metric.post('/metrics')
-def add_metrics(metrics: list[Metric]):
+@metric.post('/metrics', response_model=MetricOut)
+def add_metrics(metrics: list[MetricIn]):
     new_metrics = [dict(metric) for metric in metrics]
     
     # Eliminar la clave "id" de cada métrica (si existe)
