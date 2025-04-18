@@ -15,11 +15,11 @@ NetUser404 es una API construida con FastAPI que permite almacenar y consultar m
 * Solo disponible para Linux
 * Python 3.10 o superior
 * Git
-* MongoDB
+* MongoDB Community Edition -> [Guía de instalación](https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-ubuntu/)
 
 ## Instalación
 
-En la consolo ejecutar el siguiente comando:
+En la terminal, ejecutar el siguiente comando:
 ```
 wget https://raw.githubusercontent.com/franyober/NetUser404-api/refs/heads/main/install_api
 ```
