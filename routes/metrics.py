@@ -4,11 +4,18 @@ from config.db import metrics, conn
 from schemas.metrics import MetricIn, MetricOut, metricEntity, metricsEntity
 from dotenv import load_dotenv
 from typing import Optional
+import codecs
 
 # Cargar las variables del archivo .env
 load_dotenv()
 
 metric = APIRouter()
+
+def clean_ssid(ssid_str):
+    try:
+        return codecs.decode(ssid_str.encode('utf-8').decode('unicode_escape').encode('latin1'), 'utf-8')
+    except Exception:
+        return ssid_str
 
 # Nuevos endpoints con filtros
 @metric.get('/macs_by_bssid')
@@ -62,7 +69,7 @@ def get_networks():
         #{"$project": {"_id": 0, "bssid": "$_id"}}
     ]
     
-    networks = [item["_id"].replace("\\x20", " ") for item in metrics.aggregate(pipeline)]
+    networks = [clean_ssid(item["_id"]) for item in metrics.aggregate(pipeline)]
     return {"network": networks}
 
 @metric.get('/MAC_list')
