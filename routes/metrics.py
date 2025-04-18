@@ -11,6 +11,22 @@ load_dotenv()
 
 metric = APIRouter()
 
+# Nuevos endpoints con filtros
+@metric.get('/macs_by_bssid')
+def get_macs_by_bssid(bssid: str):
+    pipeline = [
+        {"$match": {"bssid": bssid, "MAC": {"$nin": ["N/A", "string"]}}},
+        {"$group": {"_id": "$MAC"}}
+    ]
+    return {"MAC_list": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
+
+@metric.get('/bssids_by_mac')
+def get_bssids_by_mac(mac: str):
+    pipeline = [
+        {"$match": {"MAC": mac, "bssid": {"$nin": ["N/A", "string"]}}},
+        {"$group": {"_id": "$bssid"}}
+    ]
+    return {"network": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
 
 
 # Nuevos endpoints con filtros
@@ -30,6 +46,13 @@ def get_bssids_by_mac(mac: str):
     ]
     return {"network": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
 
+def match_filter(date: str, bssid: str, url: Optional[str] = None, mac: Optional[str] = None):
+    match = {"date": date, "bssid": bssid}
+    if url:
+        match["url"] = url
+    if mac:
+        match["MAC"] = mac
+    return match
 
 @metric.get('/networks')
 def get_networks():
@@ -71,9 +94,7 @@ def get_pages():
 @metric.get("/metrics/status_code")
 def get_errors_count(date: str, bssid: str, url: str, mac:Optional[str]=Query(None)):
 
-    match = {"date": date, "bssid": bssid, "url": url}
-    if mac:
-        match["MAC"] = mac
+    match = match_filter(date, bssid, url, mac)
 
     pipeline = [
         {"$match": match},  # Filtrar por fecha
@@ -90,9 +111,7 @@ def get_errors_count(date: str, bssid: str, url: str, mac:Optional[str]=Query(No
 @metric.get('/metrics/load')
 def get_load_time(date: str, bssid: str, url: str, mac: Optional[str] = Query(None)):
 
-    match = {"date": date, "bssid": bssid, "url": url}
-    if mac:
-        match["MAC"] = mac
+    match = match_filter(date, bssid, url, mac)
 
     registros = conn.local.metrics.find(
         match,  # Filtrar por fecha
@@ -106,9 +125,7 @@ def get_load_time(date: str, bssid: str, url: str, mac: Optional[str] = Query(No
 @metric.get('/metrics/latency')
 def get_delay(date: str, bssid: str, mac: Optional[str] = Query(None)):
 
-    match = {"date": date, "bssid": bssid}
-    if mac:
-        match["MAC"] = mac
+    match = match_filter(date, bssid, url=None, mac=mac)
 
     registros = conn.local.metrics.find(
         match,  # Filtrar por fecha
@@ -121,9 +138,7 @@ def get_delay(date: str, bssid: str, mac: Optional[str] = Query(None)):
 @metric.get('/metrics/download')
 def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
 
-    match = {"date": date, "bssid": bssid}
-    if mac:
-        match["MAC"] = mac
+    match = match_filter(date, bssid, url=None, mac=mac)
 
     registros = conn.local.metrics.find(
         match,  # Filtrar por fecha
