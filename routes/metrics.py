@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 from fastapi import Query
-from config.db import conn
+from config.db import metrics, conn
 from schemas.metrics import metricEntity, metricsEntity
 from models.metrics import Metric
 from dotenv import load_dotenv
@@ -63,7 +63,7 @@ def get_networks():
         #{"$project": {"_id": 0, "bssid": "$_id"}}
     ]
     
-    networks = [item["_id"].replace("\\x20", " ") for item in conn.local.metrics.aggregate(pipeline)]
+    networks = [item["_id"].replace("\\x20", " ") for item in metrics.aggregate(pipeline)]
     return {"network": networks}
 
 @metric.get('/MAC_list')
@@ -75,7 +75,7 @@ def get_mac_list():
 
     ]
     
-    MAC_list = [item["_id"] for item in conn.local.metrics.aggregate(pipeline)]
+    MAC_list = [item["_id"] for item in metrics.aggregate(pipeline)]
     return {"MAC_list": MAC_list}
 
 
@@ -88,7 +88,7 @@ def get_pages():
         
     ]
     
-    pages = [item["_id"] for item in conn.local.metrics.aggregate(pipeline)]
+    pages = [item["_id"] for item in metrics.aggregate(pipeline)]
     return {"pages": pages}
 
 @metric.get("/metrics/status_code")
@@ -101,7 +101,7 @@ def get_errors_count(date: str, bssid: str, url: str, mac:Optional[str]=Query(No
         {"$group": {"_id": "$status", "count": {"$sum": 1}}}  # Agrupar por código HTTP y contar
     ]
 
-    resultados = list(conn.local.metrics.aggregate(pipeline))
+    resultados = list(metrics.aggregate(pipeline))
 
     # Convertir resultados en un diccionario {codigo: cantidad}
     conteo_por_codigo = [{"status": item["_id"], "count": item["count"]} for item in resultados]
@@ -113,7 +113,7 @@ def get_load_time(date: str, bssid: str, url: str, mac: Optional[str] = Query(No
 
     match = match_filter(date, bssid, url, mac)
 
-    registros = conn.local.metrics.find(
+    registros = metrics.find(
         match,  # Filtrar por fecha
         {"hour": 1, "load": 1, "_id": 0}  # Solo obtener hour y delay
     )
@@ -127,7 +127,7 @@ def get_delay(date: str, bssid: str, mac: Optional[str] = Query(None)):
 
     match = match_filter(date, bssid, url=None, mac=mac)
 
-    registros = conn.local.metrics.find(
+    registros = metrics.find(
         match,  # Filtrar por fecha
         {"hour": 1, "delay": 1, "_id": 0}  # Solo obtener hour y delay
     )
@@ -140,7 +140,7 @@ def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
 
     match = match_filter(date, bssid, url=None, mac=mac)
 
-    registros = conn.local.metrics.find(
+    registros = metrics.find(
         match,  # Filtrar por fecha
         {"hour": 1, "download": 1, "_id": 0}  # Solo obtener hour y delay
     )
@@ -153,8 +153,8 @@ def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
 def add_metric(metric: Metric):
     new_metric = dict(metric)
     del new_metric["id"]
-    id = conn.local.metrics.insert_one(new_metric).inserted_id
-    metric = conn.local.metrics.find_one({"_id": id})
+    id = metrics.insert_one(new_metric).inserted_id
+    metric = metrics.find_one({"_id": id})
     return metricEntity(metric)
 
 
@@ -167,10 +167,10 @@ def add_metrics(metrics: list[Metric]):
         metric.pop("id", None)
     
     # Insertar todas las métricas en la base de datos
-    inserted = conn.local.metrics.insert_many(new_metrics)
+    inserted = metrics.insert_many(new_metrics)
     
     # Recuperar los documentos insertados
-    metrics = list(conn.local.metrics.find({"_id": {"$in": inserted.inserted_ids}}))
+    metrics = list(metrics.find({"_id": {"$in": inserted.inserted_ids}}))
     
     return [metricEntity(metric) for metric in metrics]
 
