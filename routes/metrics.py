@@ -11,6 +11,14 @@ load_dotenv()
 
 metric = APIRouter()
 
+def match_filter(date: str, bssid: str, url: Optional[str] = None, mac: Optional[str] = None):
+    match = {"date": date, "bssid": bssid}
+    if url:
+        match["url"] = url
+    if mac:
+        match["MAC"] = mac
+    return match
+
 def clean_ssid(ssid_str):
     try:
         return codecs.decode(ssid_str.encode('utf-8').decode('unicode_escape').encode('latin1'), 'utf-8')
@@ -24,7 +32,7 @@ def get_macs_by_bssid(bssid: str):
         {"$match": {"bssid": bssid, "MAC": {"$nin": ["N/A", "string"]}}},
         {"$group": {"_id": "$MAC"}}
     ]
-    return {"MAC_list": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
+    return {"MAC_list": [doc["_id"] for doc in metrics.aggregate(pipeline)]}
 
 @metric.get('/bssids_by_mac')
 def get_bssids_by_mac(mac: str):
@@ -32,33 +40,7 @@ def get_bssids_by_mac(mac: str):
         {"$match": {"MAC": mac, "bssid": {"$nin": ["N/A", "string"]}}},
         {"$group": {"_id": "$bssid"}}
     ]
-    return {"network": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
-
-
-# Nuevos endpoints con filtros
-@metric.get('/macs_by_bssid')
-def get_macs_by_bssid(bssid: str):
-    pipeline = [
-        {"$match": {"bssid": bssid, "MAC": {"$nin": ["N/A", "string"]}}},
-        {"$group": {"_id": "$MAC"}}
-    ]
-    return {"MAC_list": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
-
-@metric.get('/bssids_by_mac')
-def get_bssids_by_mac(mac: str):
-    pipeline = [
-        {"$match": {"MAC": mac, "bssid": {"$nin": ["N/A", "string"]}}},
-        {"$group": {"_id": "$bssid"}}
-    ]
-    return {"network": [doc["_id"] for doc in conn.local.metrics.aggregate(pipeline)]}
-
-def match_filter(date: str, bssid: str, url: Optional[str] = None, mac: Optional[str] = None):
-    match = {"date": date, "bssid": bssid}
-    if url:
-        match["url"] = url
-    if mac:
-        match["MAC"] = mac
-    return match
+    return {"network": [doc["_id"] for doc in metrics.aggregate(pipeline)]}
 
 @metric.get('/networks')
 def get_networks():
