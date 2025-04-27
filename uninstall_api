@@ -1,0 +1,39 @@
+#!/bin/bash
+
+# Verificar si se ejecuta como root
+if [ "$EUID" -ne 0 ]; then
+    echo "Por favor, ejecuta el script como root o con sudo"
+    exit 1
+fi
+
+# Variables
+SERVICE_NAME="NetUserAPI"
+SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+INSTALL_DIR="/opt/NetUser404-api"
+
+# Detener y deshabilitar el servicio
+echo "Deteniendo y deshabilitando el servicio $SERVICE_NAME..."
+systemctl stop "$SERVICE_NAME"
+systemctl disable "$SERVICE_NAME"
+
+# Eliminar el archivo de servicio
+if [ -f "$SERVICE_FILE" ]; then
+    echo "Eliminando archivo de servicio $SERVICE_FILE..."
+    rm -f "$SERVICE_FILE"
+else
+    echo "Archivo de servicio no encontrado: $SERVICE_FILE"
+fi
+
+# Recargar systemd para aplicar cambios
+systemctl daemon-reload
+systemctl reset-failed
+
+# Eliminar directorio de instalación
+if [ -d "$INSTALL_DIR" ]; then
+    echo "Eliminando directorio de instalación $INSTALL_DIR..."
+    rm -rf "$INSTALL_DIR"
+else
+    echo "Directorio de instalación no encontrado: $INSTALL_DIR"
+fi
+
+echo "Desinstalación completada."
