@@ -3,7 +3,7 @@ from fastapi import Query
 from config.db import metrics, conn
 from schemas.metrics import MetricIn, MetricOut, metricEntity, metricsEntity
 from dotenv import load_dotenv
-from typing import Optional
+from typing import Optional, List
 import codecs
 
 # Cargar las variables del archivo .env
@@ -146,21 +146,21 @@ def add_metric(metric: MetricIn):
     return metricEntity(metric)
 
 
-@metric.post('/metrics', response_model=MetricOut)
-def add_metrics(metrics: list[MetricIn]):
-    new_metrics = [dict(metric) for metric in metrics]
-    
+
+@metric.post('/metrics', response_model=List[MetricOut])
+def add_metrics(metrics_list: list[MetricIn]):
+    new_metrics = [dict(metric) for metric in metrics_list]
+
     # Eliminar la clave "id" de cada métrica (si existe)
     for metric in new_metrics:
         metric.pop("id", None)
-    
-    # Insertar todas las métricas en la base de datos
+
+    # Insertar en MongoDB
     inserted = metrics.insert_many(new_metrics)
-    
-    # Recuperar los documentos insertados
-    metrics = list(metrics.find({"_id": {"$in": inserted.inserted_ids}}))
-    
-    return [metricEntity(metric) for metric in metrics]
+
+    inserted_docs = list(metrics.find({"_id": {"$in": inserted.inserted_ids}}))
+
+    return [metricEntity(metric) for metric in inserted_docs]  # ← Esta es la línea clave
 
 #----------------------
 @metric.get("/check-mongodb")
