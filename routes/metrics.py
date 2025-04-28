@@ -5,6 +5,7 @@ from schemas.metrics import MetricIn, MetricOut, metricEntity, metricsEntity
 from dotenv import load_dotenv
 from typing import Optional, List
 import codecs
+import re
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -135,6 +136,65 @@ def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
     registros_list = list(registros)
 
     return registros_list
+
+@metric.get('/metrics/comments')
+def get_comments_ranges(date: str, bssid: str, mac: Optional[str] = Query(None)):
+    match = {"date": date, "bssid": bssid}
+    if mac:
+        match["MAC"] = mac
+
+    # Obtener registros ordenados por hora
+    registros = list(metrics.find(
+        match,
+        {"hour": 1, "comment": 1, "_id": 0}
+    ).sort("hour", 1))
+
+    # Función para extraer comentarios individuales
+    def extraer_comentarios(texto):
+        return re.findall(r'\[(.*?)\]', texto)
+
+    comentarios_activos = {}
+    resultados = []
+
+    for reg in registros:
+        hora = reg["hour"]
+        comentarios_actuales = extraer_comentarios(reg.get("comment", ""))
+
+        # Marcar comentarios que continúan activos
+        comentarios_en_este_registro = set()
+
+        for comentario in comentarios_actuales:
+            comentarios_en_este_registro.add(comentario)
+            if comentario not in comentarios_activos:
+                # Nuevo comentario detectado: abrir rango
+                comentarios_activos[comentario] = {"Inicio": hora}
+
+        # Detectar comentarios que desaparecieron
+        comentarios_a_cerrar = []
+        for comentario in comentarios_activos:
+            if comentario not in comentarios_en_este_registro:
+                # Este comentario ya no aparece: cerrar el rango
+                resultado = {
+                    "Comentario": comentario,
+                    "Inicio": comentarios_activos[comentario]["Inicio"],
+                    "Final": hora
+                }
+                resultados.append(resultado)
+                comentarios_a_cerrar.append(comentario)
+
+        for comentario in comentarios_a_cerrar:
+            comentarios_activos.pop(comentario)
+
+    # Cerrar comentarios activos restantes al final
+    for comentario, rango in comentarios_activos.items():
+        resultados.append({
+            "Comentario": comentario,
+            "Inicio": rango["Inicio"],
+            "Final": registros[-1]["hour"]  # Finalizamos en la última hora conocida
+        })
+
+    return resultados
+
 
 #------------------------------------POST-------------------------------------
 @metric.post("/metric", response_model=MetricOut)
