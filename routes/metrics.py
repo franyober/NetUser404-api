@@ -173,49 +173,64 @@ def get_comments_ranges(date: str, bssid: str, mac: Optional[str] = Query(None))
         {"hour": 1, "comment": 1, "_id": 0}
     ).sort("hour", 1))
 
-    # Función para extraer comentarios individuales
     def extraer_comentarios(texto):
         return re.findall(r'\[(.*?)\]', texto)
 
     comentarios_activos = {}
     resultados = []
 
+    prev_hora_dt = None  # Para detectar huecos
     for reg in registros:
-        hora = reg["hour"]
+        hora_str = reg["hour"]
         comentarios_actuales = extraer_comentarios(reg.get("comment", ""))
 
-        # Marcar comentarios que continúan activos
-        comentarios_en_este_registro = set()
+        try:
+            hora_dt = datetime.strptime(hora_str, "%H:%M:%S")
 
+            # Detectar huecos de tiempo (> 5 min)
+            if prev_hora_dt is not None:
+                diferencia = hora_dt - prev_hora_dt
+                if diferencia > timedelta(minutes=5):
+                    resultados.append({
+                        "comment": "sin mediciones",
+                        "start": prev_hora_dt.strftime("%H:%M:%S"),
+                        "end": hora_dt.strftime("%H:%M:%S")
+                    })
+
+            prev_hora_dt = hora_dt
+        except:
+            continue
+
+        # Procesar comentarios actuales
+        comentarios_en_este_registro = set()
         for comentario in comentarios_actuales:
             comentarios_en_este_registro.add(comentario)
             if comentario not in comentarios_activos:
-                # Nuevo comentario detectado: abrir rango
-                comentarios_activos[comentario] = {"Inicio": hora}
+                comentarios_activos[comentario] = {"start": hora_str}
 
-        # Detectar comentarios que desaparecieron
+        # Cerrar comentarios que ya no están activos
         comentarios_a_cerrar = []
         for comentario in comentarios_activos:
             if comentario not in comentarios_en_este_registro:
-                # Este comentario ya no aparece: cerrar el rango
-                resultado = {
-                    "Comentario": comentario,
-                    "Inicio": comentarios_activos[comentario]["Inicio"],
-                    "Final": hora
-                }
-                resultados.append(resultado)
+                resultados.append({
+                    "comment": comentario,
+                    "start": comentarios_activos[comentario]["start"],
+                    "end": hora_str
+                })
                 comentarios_a_cerrar.append(comentario)
 
         for comentario in comentarios_a_cerrar:
             comentarios_activos.pop(comentario)
 
-    # Cerrar comentarios activos restantes al final
-    for comentario, rango in comentarios_activos.items():
-        resultados.append({
-            "Comentario": comentario,
-            "Inicio": rango["Inicio"],
-            "Final": registros[-1]["hour"]  # Finalizamos en la última hora conocida
-        })
+    # Cerrar comentarios activos restantes
+    if registros:
+        ultima_hora = registros[-1]["hour"]
+        for comentario, rango in comentarios_activos.items():
+            resultados.append({
+                "comment": comentario,
+                "start": rango["start"],
+                "end": ultima_hora
+            })
 
     return resultados
 
