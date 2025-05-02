@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 from typing import Optional, List
 import codecs
 import re
+from collections import defaultdict
+from datetime import datetime, timedelta
 
 # Cargar las variables del archivo .env
 load_dotenv()
@@ -130,12 +132,34 @@ def get_download(date: str, bssid: str, mac: Optional[str] = Query(None)):
     match = match_filter(date, bssid, url=None, mac=mac)
 
     registros = metrics.find(
-        match,  # Filtrar por fecha
-        {"hour": 1, "download": 1, "_id": 0}  # Solo obtener hour y delay
+        match,
+        {"hour": 1, "download": 1, "_id": 0}
     )
-    registros_list = list(registros)
 
-    return registros_list
+    bloques = defaultdict(list)
+
+    for r in registros:
+        hora = r["hour"]
+        velocidad = r.get("download", 0)
+
+        try:
+            t = datetime.strptime(hora, "%H:%M:%S")
+            bloque_clave = (t.hour * 60 + t.minute) // 5  # Agrupar cada 5 min
+            bloques[bloque_clave].append(velocidad)
+        except:
+            continue  # Ignorar formatos incorrectos
+
+    resultado = []
+    for bloque, valores in sorted(bloques.items()):
+        promedio = sum(valores) / len(valores)
+        minutos = bloque * 5
+        hora_formateada = (datetime(1900, 1, 1) + timedelta(minutes=minutos)).strftime("%H:%M:%S")
+        resultado.append({
+            "hour": hora_formateada,
+            "download": round(promedio, 2)
+        })
+
+    return resultado
 
 @metric.get('/metrics/comments')
 def get_comments_ranges(date: str, bssid: str, mac: Optional[str] = Query(None)):
